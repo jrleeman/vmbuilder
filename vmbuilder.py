@@ -89,10 +89,6 @@ class VelocityModel:
         Add a velocity step to the velocity model.
         Takes a step instance and adds it into the model.
         """
-        # TODO: 
-        #       add sampling array
-   
-        # Check if it is the fist step
         if len(self.steps) != 0:
             self.FirstStep = False
             
@@ -100,13 +96,12 @@ class VelocityModel:
         self.steps.append(step)
         
         # If this is the first step we must treat it special since 
-        # time 0 is included
+        # the time zero velocity needs to be set as does Fs
         if self.FirstStep == True:
-            pass
-            #time_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
+            self.velocity[0] = step.velocity
+            self.sampling[0] = step.Fs
         
-        else:
-            time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
+        time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
         
         number_of_points = len(time_array)
         vel_array  = step.velocity * np.ones(number_of_points)
@@ -116,10 +111,6 @@ class VelocityModel:
             disp_array = disp_array + self.displacement[-1]
 
         samp_array = step.Fs * np.ones(number_of_points)
-        
-        ##
-        #print time_array
-        print len(time_array)
         
         self.velocity     = np.concatenate((self.velocity,vel_array))
         self.time         = np.concatenate((self.time,time_array))
