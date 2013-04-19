@@ -102,20 +102,24 @@ class VelocityModel:
         # If this is the first step we must treat it special since 
         # time 0 is included
         if self.FirstStep == True:
-            time_array = np.arange(0,step.duration,1./step.Fs)
+            time_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
         
         else:
             time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
         
-        number_of_points = step.Fs*step.duration
+        number_of_points = len(time_array)
         vel_array  = step.velocity * np.ones(number_of_points)
-        disp_array = ((time_array-time_array[0]) * step.velocity) 
+        disp_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs) * step.velocity
         
         if self.FirstStep == False:
             disp_array = disp_array + self.displacement[-1]
 
         samp_array = step.Fs * np.ones(number_of_points)
-       
+        
+        ##
+        #print time_array
+        print len(time_array)
+        
         self.velocity     = np.concatenate((self.velocity,vel_array))
         self.time         = np.concatenate((self.time,time_array))
         self.displacement = np.concatenate((self.displacement,disp_array))
