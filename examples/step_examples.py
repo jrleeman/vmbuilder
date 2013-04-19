@@ -4,10 +4,10 @@
 # tests are shown.
 
 # Import the velocity tool
-import rsffs
+import vmbuilder
 
 # Create an instance of the velocity model class
-vm = rsffs.VelocityModel()
+vm = vmbuilder.VelocityModel()
 
 #
 # Let's make a velocity step thats sliding at 1 um/s for a total
