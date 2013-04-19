@@ -102,6 +102,7 @@ class VelocityModel:
         # If this is the first step we must treat it special since 
         # time 0 is included
         if self.FirstStep == True:
+            #pass
             time_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
         
         else:
