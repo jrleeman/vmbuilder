@@ -29,10 +29,10 @@ class VelocityModel:
         """
         Make the initial arrays to hold velocity model steps.
         """
-        self.time         = np.empty(0)
-        self.displacement = np.empty(0)
-        self.velocity     = np.empty(0)
-        self.sampling     = np.empty(0)
+        self.time         = np.zeros(1)
+        self.displacement = np.zeros(1)
+        self.velocity     = np.zeros(1)
+        self.sampling     = np.zeros(1)
         self.steps        = []
         self.FirstStep    = True
     
@@ -102,8 +102,8 @@ class VelocityModel:
         # If this is the first step we must treat it special since 
         # time 0 is included
         if self.FirstStep == True:
-            #pass
-            time_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
+            pass
+            #time_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
         
         else:
             time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
