@@ -19,6 +19,8 @@ import numpy as np
 import matplotlib.pylab as plt
 from math import log,exp, floor
 
+end_voltage = 0.
+
 def SecondsToHMS(seconds):
     hours = floor(seconds/3600.)
     minutes = floor((seconds - hours * 3600)/60.)
@@ -54,7 +56,7 @@ class VelocityModel:
             self.displacement = None
             self.Fs           = None
             self.start_time   = None
-            self.number       = 1
+            self.number       = None
        
         def hold(self,duration):
             """
@@ -73,7 +75,7 @@ class VelocityModel:
             f.write('%f\n' %v)
         f.close()
         
-    def add_step(self,step):
+    def add_step(self,step,edit=False):
         """
         Add a velocity step to the velocity model.
         Takes a step instance and adds it into the model.
@@ -89,36 +91,46 @@ class VelocityModel:
         if step.duration == None:
             step.duration = step.displacement/step.velocity
 
-        if len(self.steps) != 0:
-            self.FirstStep = False
-            step.number = self.steps[-1].number + 1
-        
-        # If this is the first step we must treat it special since 
-        # the time zero velocity needs to be set as does Fs
         if self.FirstStep == True:
-            self.velocity[0] = step.velocity
-            self.sampling[0] = step.Fs
+            step.number = 1
+            self.FirstStep = False
         
-        time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
+        if step.number == None:
+            step.number = self.steps[-1].number + 1
+       
+        if edit:
+            self.steps[step.number-1] = step
+        else:
+            # Add step to list of steps
+            self.steps.append(step)
         
-        step.start_time = time_array[0]
 
-        number_of_points = len(time_array)
-        vel_array  = step.velocity * np.ones(number_of_points)
-        disp_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs) * step.velocity
-        
-        if self.FirstStep == False:
-            disp_array = disp_array + self.displacement[-1]
+    def build_model(self):
 
-        samp_array = step.Fs * np.ones(number_of_points)
-        
-        self.velocity     = np.concatenate((self.velocity,vel_array))
-        self.time         = np.concatenate((self.time,time_array))
-        self.displacement = np.concatenate((self.displacement,disp_array))
-        self.sampling     = np.concatenate((self.sampling,samp_array))
-    
-        # Add step to list of steps
-        self.steps.append(step)
+       for step in self.steps:
+            # If this is the first step we must treat it special since 
+            # the time zero velocity needs to be set as does Fs
+            if step.number == 1:
+                self.velocity[0] = step.velocity
+                self.sampling[0] = step.Fs
+            
+            time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
+            
+            step.start_time = time_array[0]
+
+            number_of_points = len(time_array)
+            vel_array  = step.velocity * np.ones(number_of_points)
+            disp_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs) * step.velocity
+            
+            if self.FirstStep == False:
+                disp_array = disp_array + self.displacement[-1]
+
+            samp_array = step.Fs * np.ones(number_of_points)
+            
+            self.velocity     = np.concatenate((self.velocity,vel_array))
+            self.time         = np.concatenate((self.time,time_array))
+            self.displacement = np.concatenate((self.displacement,disp_array))
+            self.sampling     = np.concatenate((self.sampling,samp_array))
 
     def print_summary(self):
 
@@ -137,6 +149,26 @@ class VelocityModel:
         print 'Total Time [hh:mm:ss]: %s' %end_time_str
         end_voltage = 0.
         print 'Total Delta V: %.4f' %end_voltage
+
+    def write_mdsummary(self,fname):
+        f = open(fname,'w')
+
+        end_time_str = SecondsToHMS(self.time[-1])
+
+        f.write('# Control File Summary\n')
+        f.write('### %s\n\n' %fname)
+        f.write('| Step Number | Start Time | Velocity | Displacement |  Duration  |\n')
+        f.write('|             |    hh:mm:ss|      um/s|            um|           s|\n')
+        f.write('--------------|------------|----------|--------------|------------|\n')
+        for step in self.steps:
+            start_str = SecondsToHMS(step.start_time)
+            f.write('|%13d|%12s|%10.2f|%14.2f|%12.2f|\n' %(step.number,start_str,step.velocity,step.displacement,step.duration))
+        
+        #f.write('\n-------------------------------------------------------------------')
+        f.write('\n### Total Time [hh:mm:ss]: %s\n' %end_time_str)
+        f.write('### Total Delta V: %.4f\n' %end_voltage)
+        f.close()
+
 
     def plot(self):
         """
@@ -189,3 +221,76 @@ class VelocityModel:
         
         # Show the plot
         plt.show()
+
+if __name__ == "__main__":
+    model = VelocityModel()
+    do_commands = True
+
+    fname = raw_input('Output name: ')
+    calibration = input('Calibration [mm/V]: ')
+    calibration = -1*calibration
+    Fs = input('Update Rate [Hz]: ')
+    edit_mode = False
+    while do_commands:
+        cmd = raw_input('>') 
+        arg = cmd.split(' ')
+
+        if arg[0] == 'q':
+            model.build_model()
+            model.write_file(fname,calibration)
+            model.write_mdsummary('%s_summary.md' %fname)
+            model.print_summary()
+            do_commands = False
+
+        elif arg[0] == 's':
+            model.build_model()
+            model.print_summary()
+        
+        elif arg[0] == 'e':
+            step = model.steps[int(arg[1])-1]
+            print 'Edit step %d' %(int(arg[1]))
+            edit_mode = True
+
+        elif arg[0] == 'h':
+            if edit_mode == False:
+                step = model.step()
+                step.Fs = Fs
+            step.hold(float(arg[1]))
+            #try:
+            model.add_step(step,edit_mode)
+            print 'Added hold of %f seconds' %float(arg[1])
+            edit_mode = False
+            #except:
+            #    print 'Error adding hold'
+                
+        elif arg[0] == 'p':
+            model.build_model()
+            model.plot()
+
+        elif arg[0] == 'v':
+            if edit_mode == False:
+                step = model.step()
+                step.Fs = Fs
+            else:
+                step.duration = None
+                step.displacement = None
+                step.velocity = None
+            
+            step.velocity = float(arg[1])
+
+            if arg[2] == 't':
+                step.duration = float(arg[3])
+            elif arg[2] == 'd':
+                step.displacement = float(arg[3])
+            #try:
+            model.add_step(step,edit_mode)
+            print 'Added velocity of %f um/s for %f um and %f s' %(step.velocity,step.displacement,step.duration)
+            edit_mode = False
+            #except:
+            #print 'Error adding velocity'
+
+        else:
+            print 'Invalid command'
+            
+
+
