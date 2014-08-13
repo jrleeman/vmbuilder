@@ -17,8 +17,13 @@ __status__ = "Development"
 
 import numpy as np
 import matplotlib.pylab as plt
-from math import log,exp
+from math import log,exp, floor
 
+def SecondsToHMS(seconds):
+    hours = floor(seconds/3600.)
+    minutes = floor((seconds - hours * 3600)/60.)
+    seconds = seconds - hours * 3600 - minutes * 60
+    return '%02d:%02d:%02d' %(hours,minutes,seconds)
 
 class VelocityModel:
     """
@@ -48,6 +53,8 @@ class VelocityModel:
             self.duration     = None
             self.displacement = None
             self.Fs           = None
+            self.start_time   = None
+            self.number       = 1
        
         def hold(self,duration):
             """
@@ -84,9 +91,7 @@ class VelocityModel:
 
         if len(self.steps) != 0:
             self.FirstStep = False
-            
-        # Add step to list of steps
-        self.steps.append(step)
+            step.number = self.steps[-1].number + 1
         
         # If this is the first step we must treat it special since 
         # the time zero velocity needs to be set as does Fs
@@ -96,6 +101,8 @@ class VelocityModel:
         
         time_array = self.time[-1] + np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs)
         
+        step.start_time = time_array[0]
+
         number_of_points = len(time_array)
         vel_array  = step.velocity * np.ones(number_of_points)
         disp_array = np.arange(1./step.Fs,step.duration+1./step.Fs,1./step.Fs) * step.velocity
@@ -109,7 +116,28 @@ class VelocityModel:
         self.time         = np.concatenate((self.time,time_array))
         self.displacement = np.concatenate((self.displacement,disp_array))
         self.sampling     = np.concatenate((self.sampling,samp_array))
+    
+        # Add step to list of steps
+        self.steps.append(step)
+
+    def print_summary(self):
+
+        end_time_str = SecondsToHMS(self.time[-1])
+
+        print '\n'
+        print '-------------------------------------------------------------------'
+        print '| Step Number | Start Time | Velocity | Displacement |  Duration  |'
+        print '|             |    hh:mm:ss|      um/s|            um|           s|'
+        print '------------------------------------------------------------------|'
+        for step in self.steps:
+            start_str = SecondsToHMS(step.start_time)
+            print '|%13d|%12s|%10.2f|%14.2f|%12.2f|' %(step.number,start_str,step.velocity,step.displacement,step.duration)
         
+        print '-------------------------------------------------------------------'
+        print 'Total Time [hh:mm:ss]: %s' %end_time_str
+        end_voltage = 0.
+        print 'Total Delta V: %.4f' %end_voltage
+
     def plot(self):
         """
         Make a plot of the current velocity model.  Plot the following plots:
@@ -151,7 +179,7 @@ class VelocityModel:
         ax1.set_xlim(0,max(self.time))
         ax2.set_xlim(0,max(self.time))
         ax3.set_xlim(0,max(self.time))
-        ax4.set_xlim(0,max(self.displacement))
+        ax4.set_xlim(min(self.displacement),max(self.displacement))
         
         # y-limits 
         ax1.set_ylim(0,max(self.velocity)*pad)
