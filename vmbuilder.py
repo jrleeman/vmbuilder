@@ -107,7 +107,12 @@ class VelocityModel:
 
     def build_model(self):
 
-       for step in self.steps:
+        i = 1
+        for step in self.steps:
+            step.number = i
+            i += 1
+
+        for step in self.steps:
             # If this is the first step we must treat it special since 
             # the time zero velocity needs to be set as does Fs
             if step.number == 1:
@@ -231,6 +236,7 @@ if __name__ == "__main__":
     calibration = -1*calibration
     Fs = input('Update Rate [Hz]: ')
     edit_mode = False
+    insert_mode = False
     while do_commands:
         cmd = raw_input('>') 
         arg = cmd.split(' ')
@@ -241,6 +247,17 @@ if __name__ == "__main__":
             model.write_mdsummary('%s_summary.md' %fname)
             model.print_summary()
             do_commands = False
+
+        elif arg[0] == 'd':
+            model.steps.pop(int(arg[1])-1)
+
+        elif arg[0] == 'i':
+            insert_mode = True
+            insert_loc = int(arg[1]) - 1
+            step = model.step()
+            step.Fs = Fs
+            step.hold(1)
+            model.steps.insert(insert_loc,step)
 
         elif arg[0] == 's':
             model.build_model()
@@ -286,6 +303,7 @@ if __name__ == "__main__":
             model.add_step(step,edit_mode)
             print 'Added velocity of %f um/s for %f um and %f s' %(step.velocity,step.displacement,step.duration)
             edit_mode = False
+            insert_mode = False
             #except:
             #print 'Error adding velocity'
 
