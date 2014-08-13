@@ -48,33 +48,7 @@ class VelocityModel:
             self.duration     = None
             self.displacement = None
             self.Fs           = None
-            
-        def set_velocity(self, velocity):
-            """
-            Set the velocity of the step and calculate the displacement based
-            on the duration of sliding.  
-            """
-            if self.duration == None:
-                print """Warning! You must set a duration of sliding before
-                       setting the velocity for displacement to be
-                       calculated properly!"""
-             
-            self.velocity = velocity
-            self.displacement = self.velocity * self.duration
-        
-        def set_displacement(self, displacement):
-            """
-            Set the displacement of the step and calculate the velocity based
-            on the accumulated displacement when sliding.  
-            """
-            if self.velocity == None:
-                print """Warning! You must set a velocity of sliding before
-                       setting the displacement for duration to be
-                       calculated properly!"""
-             
-            self.displacement = displacement
-            self.duration = self.displacement/self.velocity
-            
+       
         def hold(self,duration):
             """
             Create a hold step during an experiment.  This just automates what
@@ -83,12 +57,31 @@ class VelocityModel:
             self.velocity = 0.0
             self.duration = duration
             self.displacement = 0.0
+
+    def write_file(self,fname,calibration):
+        #mm/V
+        f = open(fname,'w')
+        voltage = self.displacement/calibration/1000.
+        for v in voltage:
+            f.write('%f\n' %v)
+        f.close()
         
     def add_step(self,step):
         """
         Add a velocity step to the velocity model.
         Takes a step instance and adds it into the model.
         """
+
+        if step.velocity == None:
+            print "Error: No step velocity set."
+            return
+
+        if step.displacement == None:
+            step.displacement = step.velocity * step.duration
+
+        if step.duration == None:
+            step.duration = step.displacement/step.velocity
+
         if len(self.steps) != 0:
             self.FirstStep = False
             
@@ -126,23 +119,24 @@ class VelocityModel:
         4) Displacement, Velocity
         """   
         # Make figure and four subplots
-        fig = plt.figure(0)
+        fig = plt.figure(figsize=(12,8))
         ax1 = plt.subplot(411)
         ax2 = plt.subplot(412)
         ax3 = plt.subplot(413)
         ax4 = plt.subplot(414)
-        
+        plt.subplots_adjust(hspace=0.4)
+
         # Set x-labels
-        ax1.set_xlabel('Time')
-        ax2.set_xlabel('Time')
-        ax3.set_xlabel('Time')
-        ax4.set_xlabel('Displacement')
+        ax1.set_xlabel('Time [s]')
+        ax2.set_xlabel('Time [s]')
+        ax3.set_xlabel('Time [s]')
+        ax4.set_xlabel('Displacement [um]')
         
         # Set y-labels
-        ax1.set_ylabel('Velocity')
-        ax2.set_ylabel('Fs')
-        ax3.set_ylabel('Displacement')
-        ax4.set_ylabel('Velocity')
+        ax1.set_ylabel('Velocity [um/s]')
+        ax2.set_ylabel('Fs [Hz]')
+        ax3.set_ylabel('Displacement [um]')
+        ax4.set_ylabel('Velocity [um/s]')
         
         # Plot the data on the subplots
         ax1.plot(self.time,self.velocity,color='k')
