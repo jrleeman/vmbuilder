@@ -38,10 +38,14 @@ class VelocityModel:
         """
         self.time         = np.zeros(1)
         self.displacement = np.zeros(1)
+        self.voltage = np.zeros(1)
         self.velocity     = np.zeros(1)
         self.sampling     = np.zeros(1)
         self.steps        = []
         self.FirstStep    = True
+        self.final_voltage = None
+        self.final_displacement = None
+        self.final_time = None
     
     class step:
         """
@@ -67,11 +71,10 @@ class VelocityModel:
             self.duration = duration
             self.displacement = 0.0
 
-    def write_file(self,fname,calibration):
+    def write_file(self,fname):
         #mm/V
         f = open(fname,'w')
-        voltage = self.displacement/calibration/1000.
-        for v in voltage:
+        for v in self.voltage:
             f.write('%f\n' %v)
         f.close()
         
@@ -137,9 +140,14 @@ class VelocityModel:
             self.displacement = np.concatenate((self.displacement,disp_array))
             self.sampling     = np.concatenate((self.sampling,samp_array))
 
+        self.voltage = self.displacement/self.calibration/1000.
+        self.final_displacement = self.displacement[-1]
+        self.final_time = self.time[-1]
+        self.final_voltage = self.voltage[-1]
+
     def print_summary(self):
 
-        end_time_str = SecondsToHMS(self.time[-1])
+        end_time_str = SecondsToHMS(self.final_time)
 
         print '\n'
         print '-------------------------------------------------------------------'
@@ -152,8 +160,8 @@ class VelocityModel:
         
         print '-------------------------------------------------------------------'
         print 'Total Time [hh:mm:ss]: %s' %end_time_str
-        end_voltage = 0.
-        print 'Total Delta V: %.4f' %end_voltage
+        print 'Total Delta V: %.4f' %model.final_voltage
+        print 'Total Displacement [mm]: %.4f' %(model.final_displacement/1000.)
 
     def write_mdsummary(self,fname):
         f = open(fname,'w')
@@ -169,9 +177,12 @@ class VelocityModel:
             start_str = SecondsToHMS(step.start_time)
             f.write('|%13d|%12s|%10.2f|%14.2f|%12.2f|\n' %(step.number,start_str,step.velocity,step.displacement,step.duration))
         
-        #f.write('\n-------------------------------------------------------------------')
-        f.write('\n### Total Time [hh:mm:ss]: %s\n' %end_time_str)
-        f.write('### Total Delta V: %.4f\n' %end_voltage)
+        f.write('\n###Total Time [hh:mm:ss]: %s\n' %end_time_str)
+        f.write('###Total Delta V: %.4f\n' %model.final_voltage)
+        f.write('###Total Displacement [mm]: %.4f\n' %(model.final_displacement/1000.))
+
+        #f.write('\n### Total Time [hh:mm:ss]: %s\n' %end_time_str)
+        #f.write('### Total Delta V: %.4f\n' %end_voltage)
         f.close()
 
 
@@ -228,27 +239,12 @@ class VelocityModel:
         plt.show()
 
 if __name__ == "__main__":
-    model = VelocityModel()
-    do_commands = True
 
-    fname = raw_input('Output name: ')
-    calibration = input('Calibration [mm/V]: ')
-    calibration = -1*calibration
-    Fs = input('Update Rate [Hz]: ')
-    edit_mode = False
-    insert_mode = False
-    while do_commands:
-        cmd = raw_input('>') 
+    def ProcessCommand(cmd,edit_mode,insert_mode):
+        write_cmd = True
+
         arg = cmd.split(' ')
-
-        if arg[0] == 'q':
-            model.build_model()
-            model.write_file(fname,calibration)
-            model.write_mdsummary('%s_summary.md' %fname)
-            model.print_summary()
-            do_commands = False
-
-        elif arg[0] == 'd':
+        if arg[0] == 'd':
             model.steps.pop(int(arg[1])-1)
 
         elif arg[0] == 'i':
@@ -260,6 +256,7 @@ if __name__ == "__main__":
             model.steps.insert(insert_loc,step)
 
         elif arg[0] == 's':
+            write_cmd = False
             model.build_model()
             model.print_summary()
         
@@ -281,6 +278,7 @@ if __name__ == "__main__":
             #    print 'Error adding hold'
                 
         elif arg[0] == 'p':
+            write_cmd = False
             model.build_model()
             model.plot()
 
@@ -306,9 +304,52 @@ if __name__ == "__main__":
             insert_mode = False
             #except:
             #print 'Error adding velocity'
+        else:
+            write_cmd = False
+            print 'Invalid command'
+        if write_cmd:
+            f_cmds.write('%s \n' %cmd) 
+
+    model = VelocityModel()
+    do_commands = True
+
+    fname = raw_input('Output name: ')
+    calibration = input('Calibration [mm/V]: ')
+    model.calibration = -1*calibration
+    Fs = input('Update Rate [Hz]: ')
+
+    edit_mode = False
+    insert_mode = False
+
+    # Make the command storage file
+    f_cmds = open('%s_commands.txt'%fname,'w')
+    #f_cmds.write('%s\n' %fname)
+    #f_cmds.write('%f\n' %calibration)
+    #f_cmds.write('%f\n' %Fs)
+            
+    while do_commands:
+        
+        cmd = raw_input('>')
+        arg = cmd.split(' ')
+
+        if arg[0] == 'q':
+            do_commands = False
+            f_cmds.close()
+            model.build_model()
+            model.write_file(fname)
+            model.write_mdsummary('%s_summary.md' %fname)
+            model.print_summary()
+
+        elif arg[0] == 'run':
+            f = open(arg[1],'r')
+            for cmd in f.readlines():
+                cmd = cmd.strip('\n')
+                print 'Running: ', cmd
+                ProcessCommand(cmd,edit_mode,insert_mode)
+            f.close()
 
         else:
-            print 'Invalid command'
-            
+            ProcessCommand(cmd,edit_mode,insert_mode)
 
 
+        
