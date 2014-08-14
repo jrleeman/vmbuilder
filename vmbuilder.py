@@ -109,7 +109,12 @@ class VelocityModel:
         
 
     def build_model(self):
-
+        self.time         = np.zeros(1)
+        self.displacement = np.zeros(1)
+        self.voltage = np.zeros(1)
+        self.velocity     = np.zeros(1)
+        self.sampling     = np.zeros(1)
+        
         i = 1
         for step in self.steps:
             step.number = i
@@ -240,7 +245,13 @@ class VelocityModel:
 
 if __name__ == "__main__":
 
-    def ProcessCommand(cmd,edit_mode,insert_mode):
+    class Modes:
+        def __init__(self):
+            self.edit_mode = False
+            self.insert_mode = False
+            self.step = None
+
+    def ProcessCommand(cmd,modes):
         write_cmd = True
 
         arg = cmd.split(' ')
@@ -248,7 +259,7 @@ if __name__ == "__main__":
             model.steps.pop(int(arg[1])-1)
 
         elif arg[0] == 'i':
-            insert_mode = True
+            modes.insert_mode = True
             insert_loc = int(arg[1]) - 1
             step = model.step()
             step.Fs = Fs
@@ -262,18 +273,24 @@ if __name__ == "__main__":
         
         elif arg[0] == 'e':
             step = model.steps[int(arg[1])-1]
+            modes.step = step
             print 'Edit step %d' %(int(arg[1]))
-            edit_mode = True
+            modes.edit_mode = True
 
         elif arg[0] == 'h':
-            if edit_mode == False:
+            if modes.edit_mode == False:
                 step = model.step()
                 step.Fs = Fs
+            else:
+                step = modes.step
+                step.duration = None
+                step.displacement = None
+                step.velocity = None
             step.hold(float(arg[1]))
             #try:
-            model.add_step(step,edit_mode)
+            model.add_step(step,modes.edit_mode)
             print 'Added hold of %f seconds' %float(arg[1])
-            edit_mode = False
+            modes.edit_mode = False
             #except:
             #    print 'Error adding hold'
                 
@@ -283,10 +300,11 @@ if __name__ == "__main__":
             model.plot()
 
         elif arg[0] == 'v':
-            if edit_mode == False:
+            if modes.edit_mode == False:
                 step = model.step()
                 step.Fs = Fs
             else:
+                step = modes.step
                 step.duration = None
                 step.displacement = None
                 step.velocity = None
@@ -298,10 +316,10 @@ if __name__ == "__main__":
             elif arg[2] == 'd':
                 step.displacement = float(arg[3])
             #try:
-            model.add_step(step,edit_mode)
+            model.add_step(step,modes.edit_mode)
             print 'Added velocity of %f um/s for %f um and %f s' %(step.velocity,step.displacement,step.duration)
-            edit_mode = False
-            insert_mode = False
+            modes.edit_mode = False
+            modes.insert_mode = False
             #except:
             #print 'Error adding velocity'
         else:
@@ -318,15 +336,16 @@ if __name__ == "__main__":
     model.calibration = -1*calibration
     Fs = input('Update Rate [Hz]: ')
 
-    edit_mode = False
-    insert_mode = False
-
     # Make the command storage file
     f_cmds = open('%s_commands.txt'%fname,'w')
     #f_cmds.write('%s\n' %fname)
     #f_cmds.write('%f\n' %calibration)
     #f_cmds.write('%f\n' %Fs)
-            
+     
+    modes = Modes()
+    modes.edit_mode = False
+    modes.insert_mode = False  
+
     while do_commands:
         
         cmd = raw_input('>')
@@ -345,11 +364,11 @@ if __name__ == "__main__":
             for cmd in f.readlines():
                 cmd = cmd.strip('\n')
                 print 'Running: ', cmd
-                ProcessCommand(cmd,edit_mode,insert_mode)
+                ProcessCommand(cmd,modes)
             f.close()
 
         else:
-            ProcessCommand(cmd,edit_mode,insert_mode)
+            ProcessCommand(cmd,modes)
 
 
         
