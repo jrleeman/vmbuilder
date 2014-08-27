@@ -185,9 +185,6 @@ class VelocityModel:
         f.write('\n###Total Time [hh:mm:ss]: %s\n' %end_time_str)
         f.write('###Total Delta V: %.4f\n' %model.final_voltage)
         f.write('###Total Displacement [mm]: %.4f\n' %(model.final_displacement/1000.))
-
-        #f.write('\n### Total Time [hh:mm:ss]: %s\n' %end_time_str)
-        #f.write('### Total Delta V: %.4f\n' %end_voltage)
         f.close()
 
 
@@ -287,12 +284,12 @@ if __name__ == "__main__":
                 step.displacement = None
                 step.velocity = None
             step.hold(float(arg[1]))
-            #try:
-            model.add_step(step,modes.edit_mode)
-            print 'Added hold of %f seconds' %float(arg[1])
-            modes.edit_mode = False
-            #except:
-            #    print 'Error adding hold'
+            try:
+                model.add_step(step,modes.edit_mode)
+                print 'Added hold of %f seconds' %float(arg[1])
+                modes.edit_mode = False
+            except:
+                print 'Error adding hold'
                 
         elif arg[0] == 'p':
             write_cmd = False
@@ -315,13 +312,13 @@ if __name__ == "__main__":
                 step.duration = float(arg[3])
             elif arg[2] == 'd':
                 step.displacement = float(arg[3])
-            #try:
-            model.add_step(step,modes.edit_mode)
-            print 'Added velocity of %f um/s for %f um and %f s' %(step.velocity,step.displacement,step.duration)
-            modes.edit_mode = False
-            modes.insert_mode = False
-            #except:
-            #print 'Error adding velocity'
+            try:
+                model.add_step(step,modes.edit_mode)
+                print 'Added velocity of %f um/s for %f um and %f s' %(step.velocity,step.displacement,step.duration)
+                modes.edit_mode = False
+                modes.insert_mode = False
+            except:
+                print 'Error adding velocity'
         else:
             write_cmd = False
             print 'Invalid command'
@@ -338,10 +335,7 @@ if __name__ == "__main__":
 
     # Make the command storage file
     f_cmds = open('%s_commands.txt'%fname,'w')
-    #f_cmds.write('%s\n' %fname)
-    #f_cmds.write('%f\n' %calibration)
-    #f_cmds.write('%f\n' %Fs)
-     
+
     modes = Modes()
     modes.edit_mode = False
     modes.insert_mode = False  
